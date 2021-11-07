@@ -13,6 +13,8 @@ crashmon git:(main) ✗ make
 crashmon git:(main) ✗ make tests
 ```
 
+![example](https://raw.githubusercontent.com/ant4g0nist/crashmon/main/imgs/example.png)
+
 For debugging macOS System Applications/Services, it is expected that you disable SIP as crashmon uses LLDB.
 
 ### ========= Environment Variable Reference =========
