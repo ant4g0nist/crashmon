@@ -14,6 +14,10 @@ main.o:
 crashmon: crashmon.o main.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) bin/*.o -o bin/$@
 
+install:
+	cp bin/crashmon /usr/local/bin/
+	cp lisa.py ~/lisa.py
+	
 clean:
 	rm bin/*
 

@@ -8,6 +8,7 @@
 #import <unistd.h>
 #import <ptrauth.h>
 #import <sys/signal.h>
+#include <mach-o/dyld.h>
 #import <lldb/API/LLDB.h>
 #import <Foundation/Foundation.h>
 #import <CommonCrypto/CommonDigest.h>
@@ -291,7 +292,10 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
     }
     
     debugn("Process pid: %lld", process.GetProcessID());
-    runCommandAndFetchOutput(command_interpreter, "command script import /Users/ant4g0nist/Desktop/macOSResearch/crashmon/lisa.py");
+    NSString *processName = [[NSProcessInfo processInfo] processName];
+
+    runCommandAndFetchOutput(command_interpreter, "command script import ~/lisa.py");        
+    
     debugger.SetAsync(true);
     
     process.Continue();
@@ -505,6 +509,7 @@ bool write_crashlog(SBCommandInterpreter command_interpreter, SBProcess process,
     [fileManager createDirectoryAtPath:crashFolder withIntermediateDirectories:YES attributes:nil error:&error];
 
     [_exploitable_json writeToFile:[crashFolder stringByAppendingPathComponent:@"crash.log"] atomically:YES encoding:NSUTF8StringEncoding error:&error];
+
     if(current_case)
     {
         NSString *pocPath     = [NSString stringWithUTF8String:current_case];

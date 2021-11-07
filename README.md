@@ -10,7 +10,7 @@ Crashmon, same as CrashWrangelr, is a LLDB wrapper together with [Lisa.py](https
 macOSResearch ✗ git clone https://github.com/ant4g0nist/crashmon
 macOSResearch ✗ cd crashmon
 crashmon git:(main) ✗ make
-crashmon git:(main) ✗ make tests
+crashmon git:(main) ✗ make install
 ```
 
 ![example](https://raw.githubusercontent.com/ant4g0nist/crashmon/main/imgs/example.png)
