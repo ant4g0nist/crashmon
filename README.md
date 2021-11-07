@@ -15,7 +15,7 @@ crashmon git:(main) ✗ make tests
 
 For debugging macOS System Applications/Services, it is expected that you disable SIP as crashmon uses LLDB.
 
-========= Environment Variable Reference =========
+### ========= Environment Variable Reference =========
 CW_CURRENT_CASE: 
 Path of the test case file that is being open in the target application.
 If set, crashmon will read and save the content of the test case file to triaged crash folder. This will be handy while fuzzing!
@@ -33,12 +33,12 @@ The directory to output crashlogs to.
 CWE_*:
  If there are any environment variables prefixed with CWE_, delete the prefix and set the environment variable in the child.  This does not apply when using CW_ATTACH_PID or CW_REGISTER_LAUNCHD_NAME.
 
-========= crashmon return values =========
+### ========= crashmon return values =========
 No crash = 0
 Crash = 1
 Timeout = 2
 
-========= Exploitability algorithm =========
+### ========= Exploitability algorithm =========
 
 The algorithm for determining exploitability looks like this:
 
@@ -57,7 +57,7 @@ Not exploitable if
 	Other abort
 	Crash on read instruction
 
-# PS
+## PS
 This is meant to be used just as an initial triage system! Don't really 100% on the crashmon's output as there might be bugs in `lisa.py`. I appreciate pull requests. 
 
 So, it's recommended to run the test case again with libgmalloc(3) on, and see if the crash changes to one that is considered to be exploitable.
@@ -67,6 +67,6 @@ So, it's recommended to run the test case again with libgmalloc(3) on, and see i
 - [ ] test moreeee
 - [ ] follow xpc services (target function -> 'xpc_connection_get_pid'. Usecase: Safari->WebContent)
 
-# thanks
+### thanks
 - @apple for crashwrangler
 - LLVM
