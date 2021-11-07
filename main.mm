@@ -25,6 +25,8 @@ int main(int argc, const char *argv[],  char * envp[])
     help(argc, argv);
 
     struct m1Wrangler * wrangler = m1WranglerInit(argc, argv, envp);
+    int exit_status = wrangler->exit_status;
     m1WranglerDestroy(wrangler);
+
     return 0;
 }

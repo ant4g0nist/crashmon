@@ -17,7 +17,6 @@
 #import "helpers.h"
 
 extern char **environ;
-uint32_t timeout        = 60;
 const char* arch        = "arm64-apple-macosx11.1.0";
 const char* platform    = "host";
 
@@ -182,7 +181,6 @@ int checkIfCrash(SBProcess process)
     {
         SBThread thread = process.GetThreadAtIndex(i);
         const bool has_reason = ThreadHasCrashReason(thread);
-        
         if (has_reason)
         {
             return i;
@@ -205,40 +203,41 @@ const char* runCommandAndFetchOutput(lldb::SBCommandInterpreter interpreter, con
     return er;
 }
 
-void dumpStdout(SBProcess process)
-{
-    char * process_stdout = (char*) malloc(1024);
-    
-    while(process.GetSTDOUT(process_stdout, 1024)!=0)
-    {
-        printf("%s", process_stdout);
-    }
-    
-    free(process_stdout);
-    printf("\n");
-}
-
 // caller is responsible for calling m1WranglerDestroy
 struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
 {
-    
     lldb::pid_t attach_pid = 0;
     struct m1Wrangler * wrangler = (struct m1Wrangler * )malloc(sizeof(struct m1Wrangler));
     
+    uint32_t timeout = TIMEOUT;
+
+    if(getenv("CW_TIMEOUT"))
+    {
+        timeout        = atoi(getenv("CW_TIMEOUT"));
+    }
+
+    NSLog(@"timeout: %d", timeout);
     char * attach_pid_str = getenv("CW_ATTACH_PID");
     char * current_case   = getenv("CW_CURRENT_CASE");
-    
-    if (!current_case)
-        strncpy(wrangler->current_case, "m1Wrangler.poc", strlen("m1Wrangler.poc"));
-    else
-        strncpy(wrangler->current_case, current_case, strlen(current_case));
+    NSData * current_case_data = [[NSData alloc] init];
 
+    if (current_case)
+    {
+        strncpy(wrangler->current_case, current_case, strlen(current_case));
+        current_case_data = [NSData dataWithContentsOfFile:[NSString stringWithUTF8String:current_case]];
+    }
+        
     if(attach_pid_str)
     {
         attach_pid = atoi(attach_pid_str);
         wrangler->pid = attach_pid;
     }
-    
+
+    char * log_dir = getenv("CW_LOG_DIR");
+    if (! log_dir) {
+        log_dir = DEFAULT_LOG_DIR;
+    }    
+
     // Use a sentry object to properly initialize/terminate LLDB.
     SBDebugger::Initialize();
     
@@ -260,13 +259,6 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
     
     wrangler->target = target;
     
-#if TRACE_CALLOCS==1
-    {
-        trace_mallocs(wrangler);
-    }
-    
-#endif
-    
     SBFileSpec exe = target.GetExecutable();
     debugn("target: %s", exe.GetFilename());
     
@@ -283,7 +275,21 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
     launch_info.SetListener(listener);
     launch_info.SetEnvironmentEntries((const char**)environ, false);
 
-    SBProcess process = target.Launch(launch_info, error);
+    SBProcess process;
+    
+    if(!attach_pid)
+    {
+        process = target.Launch(launch_info, error);
+    }
+    else
+    {
+        process = target.AttachToProcessWithID(listener, attach_pid, error);
+    }
+    if (!error.Success())
+    {
+        die("error: %s\n", error.GetCString());
+    }
+    
     debugn("Process pid: %lld", process.GetProcessID());
     runCommandAndFetchOutput(command_interpreter, "command script import /Users/ant4g0nist/Desktop/macOSResearch/crashmon/lisa.py");
     debugger.SetAsync(true);
@@ -316,16 +322,9 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
                             
                             if (has_reason)
                             {
-                                analyseThread(process, thread);
-                                context_title("Crash Context");
-                                debugn("%s", runCommandAndFetchOutput(command_interpreter, "process status"));
-                                draw_line();
-                                debugn("%s", runCommandAndFetchOutput(command_interpreter, "bt"));
-                                draw_line();
-                                debugn("%s", runCommandAndFetchOutput(command_interpreter, "register read"));
+                                wrangler->exit_status = 1;
+                                write_crashlog(command_interpreter, process, thread, current_case, current_case_data, log_dir);
                                 should_die = true;
-                                debugn("%s", runCommandAndFetchOutput(command_interpreter, "exploitable"))
-                                
                             }
                         }
 
@@ -337,7 +336,6 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
                 }
                 else if (state == lldb::eStateCrashed)
                 {
-                    // debugn("CRASH");
                     goto die;
                 }
                 else if (state == lldb::eStateExited)
@@ -349,15 +347,16 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
         }
         else
         {
-            //timeout raise
+            //raise timeout
             debugn("Timeout received! dying!!!");
+            wrangler->exit_status = 2;
             process.Kill();
             done = true;
         }
     }
 
 die:
-    dumpStdout(process);
+    // dumpStdout(process);
     debugger.Destroy(debugger);
     SBDebugger::Terminate();
     
@@ -411,7 +410,7 @@ NSString* getFunctionTrailHash(SBThread thread)
         
     addr64_t crash_pc     =  registers.GetChildMemberWithName("pc").GetValueAsUnsigned();
     
-    uint32_t frames_count = thread.GetNumFrames();
+    uint32_t frames_count = thread.GetNumFrames() > MAX_FRAMES ? MAX_FRAMES : thread.GetNumFrames();
     
     NSMutableString * function_trail = [[NSMutableString alloc] init];
    
@@ -470,11 +469,10 @@ void dumpFunctionTrail(SBThread thread, uint32_t depth)
     debugn("");
 }
 
-bool analyseThread(SBProcess process, SBThread thread)
+bool write_crashlog(SBCommandInterpreter command_interpreter, SBProcess process, SBThread thread, char* current_case, NSData * poc, char* log_dir)
 {
     char* stop_desc = (char *) malloc(1024);
     thread.GetStopDescription(stop_desc, 1024);
-    debugn("thread stop reason: %s", stop_desc);
     
     bool is_signal      = isSignal(thread);
     bool is_exception   = isException(thread);
@@ -488,51 +486,34 @@ bool analyseThread(SBProcess process, SBThread thread)
 
     NSString* trail_hash = getFunctionTrailHash(thread);
     
-    if (is_exception)
-    {
-        struct CrashDetails * crash_details = (struct CrashDetails *)malloc(sizeof(struct CrashDetails));
-        getException(stop_desc, crash_details);
+    // save crash
+    context_title("Crash Context");
+
+    NSString * _exploitable_json = [NSString stringWithUTF8String:runCommandAndFetchOutput(command_interpreter, "exploitable")];
+    NSData *data = [_exploitable_json dataUsingEncoding:NSUTF8StringEncoding];
+    NSDictionary *exploitable_json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+
+    NSLog(@"%@", exploitable_json);
+
+    NSError * error = nil;
+    NSFileManager *fileManager = [NSFileManager defaultManager]; 
     
-        const char * code = "<unknown>";
-        switch (crash_details->code)
-        {
-            case SEGV_ACCERR:   /* [XSI] invalid permission for mapped object */
-//                debug("SEGV_ACCERR");
-                code = "SEGV_ACCERR";
-                break;
-                
-            case SEGV_MAPERR:   /* [XSI] address not mapped to object */
-//                debug("SEGV_MAPERR");
-                code = "SEGV_MAPERR";
-                break;
-                
-            default:
-//                debug("CODE: %d", crash_details->code);
-                break;
-        }
-        
-        debugn("exception: %s code: %d func: %s hash: %s", crash_details->exception, crash_details->code, function_name, [trail_hash UTF8String]);
-        dumpFunctionTrail(thread, 0x1337);
-//        KERN_INVALID_ADDRESS. The crashed thread accessed unmapped memory, either by accessing data or an instruction fetch. Identify the Type of Memory Access That Caused the Issue describes how to tell the difference.
+    NSString *is_exploitable = [exploitable_json valueForKey:@"av_is_exploitable"];
+    NSString *exception = [exploitable_json valueForKey:@"crash_code"];
 
-//        KERN_PROTECTION_FAILURE. The crashed thread tried to use a valid memory address that’s protected. Some types of protected memory include read-only memory regions, or nonexecutable memory regions. See Use VM Region Info to Locate the Memory in Your App’s Address Space for how to distinguish the type of protected memory.
+    NSString* crashFolder = [NSString stringWithFormat:@"%s/exploitable_%@/%@/%s",log_dir, is_exploitable, exception,  [trail_hash UTF8String]];
+    [fileManager createDirectoryAtPath:crashFolder withIntermediateDirectories:YES attributes:nil error:&error];
 
-//        KERN_MEMORY_ERROR. The crashed thread tried to access memory that couldn’t return data at that moment, such as a memory-mapped file that became unavailable.
-
-//        EXC_ARM_DA_ALIGN. The crashed thread tried to access memory that isn’t appropriately aligned. This exception code is rare because 64-bit ARM CPUs work with misaligned data. However, you may see this exception subtype if the memory address is both misaligned and located in an unmapped memory region. You may have other crash reports that show a memory access issue with a different exception subtype, which are likely caused by the same underlying memory access issue.
-        free(crash_details);
-    }
-    else if (is_signal)
+    [_exploitable_json writeToFile:[crashFolder stringByAppendingPathComponent:@"crash.log"] atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    if(current_case)
     {
-        // is_stack_suspicious
-        debugn("signal: %s func: %s hash: %s", stop_desc, function_name, [trail_hash UTF8String]);
-    }
-
-    else
-    {
-//        panic("the fuck is this stop reason?? %d", thread.GetStopReason());
+        NSString *pocPath     = [NSString stringWithUTF8String:current_case];
+        [poc writeToFile:[crashFolder stringByAppendingPathComponent:[pocPath lastPathComponent]] atomically:YES];
     }
     
+    NSString *logmsg = [NSString stringWithFormat:@"crash saved to %@", crashFolder];
+    context_title([logmsg UTF8String]);
+
     free(stop_desc);
 
     return true;

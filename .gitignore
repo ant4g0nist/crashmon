@@ -1,2 +1,4 @@
 resources
 bin
+crashlogs
+tests/binaries

@@ -8,6 +8,7 @@
 #ifndef config_h
 #define config_h
 
-#define TRACE_CALLOCS 0
+#define TIMEOUT 60
+#define DEFAULT_LOG_DIR "./crashlogs/"
 
 #endif /* config_h */

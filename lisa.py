@@ -2705,13 +2705,14 @@ class AARCH64(Architecture):
 
 	def get_code_desc(self, exc, code):
 		crash_code, crash_desc = None, None
-
+		
 		if exc in ['EXC_BAD_INSTRUCTION']:
 			exception	= self.exceptions[exc]
 			crash_code 	= exc
 			crash_desc	= exception[code]['desc']
 
 		elif exc in self.exceptions:
+			code = int(code)
 			exception 	= self.exceptions[exc]
 			crash_code 	= exception[code]['title']
 			crash_desc	= exception[code]['desc']
@@ -2885,7 +2886,10 @@ class AARCH64(Architecture):
 			if i.type == capstone.arm64_const.ARM64_OP_REG:
 				reg 	= insn.reg_name(i.reg)
 				val 	= self.get_register(reg)
-				disassembly_operands += f"{reg}={val:x}; "
+				if val:
+					disassembly_operands += f"{reg}={val:x}; "
+				else:
+					disassembly_operands += f"{reg}; "
 			elif i.type == capstone.arm64_const.ARM64_OP_MEM:
 				if i.reg:
 					reg 	= insn.reg_name(i.reg)
@@ -3904,13 +3908,18 @@ class ExploitableCommand(LLDBCommand):
 			exc, code, extra = parse_stopDescription(av_exception)
 
 			stack_suspicious = is_stack_suspicious(thread, exc, code, extra)
-
+			crash_code, crash_desc = arch.get_code_desc(exc, code)
+# crash_code, crash_desc = arch.get_code_desc(exc, code)
+# crash_code, crash_desc = arch.get_code_desc(exc, code)
+# crash_code, crash_desc = arch.get_code_desc(exc, code)
+# crash_code, crash_desc = arch.get_code_desc(exc, code)
 			if is_recursion:
 				code = int(code)
 				# exception 	= arch.exceptions[exc]
 				# crash_code 	= exception[code]['title']
 				# crash_desc	= exception[code]['desc']
-				crash_code, crash_desc = arch.get_code_desc(exc, code)
+				
+				#crash_code, crash_desc = arch.get_code_desc(exc, code)
 
 				av_access_type	  	= "recursion"
 				av_is_exploitable 	= False
@@ -3924,7 +3933,7 @@ class ExploitableCommand(LLDBCommand):
 				# exception 	= arch.exceptions[exc]
 				# crash_code 	= exception[code]['title']
 				# crash_desc	= exception[code]['desc']
-				crash_code, crash_desc = arch.get_code_desc(exc, code)
+				#crash_code, crash_desc = arch.get_code_desc(exc, code)
 				disassembly, _, _	= arch.get_disas_to_print(frame, process)
 
 			elif not is_recursion and exc == "EXC_BAD_ACCESS":
@@ -3933,7 +3942,7 @@ class ExploitableCommand(LLDBCommand):
 					# exception 	= arch.exceptions[exc]
 					# crash_code 	= exception[code]['title']
 					# crash_desc	= exception[code]['desc']
-					crash_code, crash_desc = arch.get_code_desc(exc, code)
+					#crash_code, crash_desc = arch.get_code_desc(exc, code)
 
 					access_address = int(extra, 16)
 
@@ -4010,11 +4019,11 @@ class ExploitableCommand(LLDBCommand):
 				#     0x7fff2036a101 <+4>:  leaq   0x9c35(%rip), %rdi        ; "detected buffer overflow"
 				#     0x7fff2036a108 <+11>: callq  0x7fff2036abc3            ; _os_crash
 				# ->  0x7fff2036a10d <+16>: ud2
-				crash_code, crash_desc = arch.get_code_desc(exc, code)
+				#crash_code, crash_desc = arch.get_code_desc(exc, code)
 				disassembly, _, _	= arch.get_disas_to_print(frame, process, pc)
 
 			elif exc == "EXC_ARITHMETIC":
-				crash_code, crash_desc = arch.get_code_desc(exc, code)
+				#crash_code, crash_desc = arch.get_code_desc(exc, code)
 				exploit_reason 	= f"Arithmetic exception at {pc:016x}, probably not exploitable."
 				disassembly, _, av_access_type 	= arch.get_disas_to_print(frame, process)
 			
@@ -4037,34 +4046,30 @@ class ExploitableCommand(LLDBCommand):
 		print(f"av_type			: {MAG}{av_access_type}{RST}")
 		print(f"av_address		: {access_address:x}")
 		print(f"stack_suspicious	: {stack_suspicious}")
-		av_is_exploitable	=	f"{RED}True{RST}" if av_is_exploitable else f"{YEL}False{RST}"
-		print(f"av_is_exploitable 	: {av_is_exploitable}")
+		_av_is_exploitable	=	f"{RED}True{RST}" if av_is_exploitable else f"{YEL}False{RST}"
+		print(f"av_is_exploitable 	: {_av_is_exploitable}")
 		print(f"exploit_reason		: {exploit_reason}")
 		print(f"disassembly		: {disassembly}")
 
-		
 		result = {}
-		result["crash_code"]	 =  f"{GRN}{crash_code}{RST}\n"
-		result["crash_desc"]	 =  f"{crash_desc}\n"
-		result["av_on_branch"]	 =  f"{YEL}{av_on_branch}{RST}\n"
-		result["av_null_deref"]	 =  f"{YEL}{av_null_deref}{RST}\n"
-		result["av_badbeef"]	 =  f"{YEL}{av_badbeef}{RST}\n"
-		result["is_recursion"]	 =  f"{YEL}{is_recursion}{RST}\n"
-		result["av_type"]	 =  f"{MAG}{av_access_type}{RST}\n"
-		result["av_address"]	 =  f"{access_address:x}\n"
-		result["stack_suspicious"]	 =  f"{stack_suspicious}\n"
-		av_is_exploitable	=	f"{RED}True{RST}" if av_is_exploitable else f"{YEL}False{RST}"
-		result["av_is_exploitable"]  =  f"{av_is_exploitable}\n"
-		result["exploit_reason"]	 =  f"{exploit_reason}\n"
-		result["disassembly"]	 =  f"{disassembly}\n"
+		result["crash_code"]	 =  f"{crash_code}"
+		result["crash_desc"]	 =  f"{crash_desc}"
+		result["av_on_branch"]	 =  f"{av_on_branch}"
+		result["av_null_deref"]	 =  f"{av_null_deref}"
+		result["av_badbeef"]	 =  f"{av_badbeef}"
+		result["is_recursion"]	 =  f"{is_recursion}"
+		result["av_type"]	 =  f"{av_access_type}"
+		result["av_address"]	 =  f"{access_address:x}"
+		result["stack_suspicious"]	 =  f"{stack_suspicious}"
+		_av_is_exploitable	=	"True" if av_is_exploitable else "False"
+		result["av_is_exploitable"]  =  f"{_av_is_exploitable}"
+		result["exploit_reason"]	 =  f"{exploit_reason}"
+		result["disassembly"]	 =  f"{disassembly}"
 		op, error = run_command_return_output("thread info")
-		result["_hash"]	 =  f"{self.crashthreadHash_(op)}\n"
-		result["_uuid"]	 =  f"{uuid.uuid4().hex}\n"
 		bt, error = run_command_return_output("bt all")
 		result["thread_info"] = bt
 
 		self.result.PutCString(json.dumps(result))
-		# arch.print_registers(frame, self.result)
 
 	def crashthreadHash_(self, thread_info):
 		#pass in result of '(lldb)thread info' after crash
@@ -4234,7 +4239,7 @@ class InstructionManualCommand(LLDBCommand):
 			errlog(insn + " not documented.")
 
 def __lldb_init_module(debugger, dict):
-	context_title(" lisa ")
+	# context_title(" lisa ")
 
 	global command_iterpreter
 
