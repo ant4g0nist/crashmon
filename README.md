@@ -32,6 +32,9 @@ sudo env CW_ATTACH_PID=12313 CW_CURRENT_CASE=foo ./crashmon
 CW_LOG_DIR: (Default ./crashlogs)
 The directory to output crashlogs to.
 
+CW_JSON_STDOUT: (Default false)
+Write exploitable output as json to stdout.
+
 CWE_*:
  If there are any environment variables prefixed with CWE_, delete the prefix and set the environment variable in the child.  This does not apply when using CW_ATTACH_PID or CW_REGISTER_LAUNCHD_NAME.
 

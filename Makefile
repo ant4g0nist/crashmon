@@ -1,8 +1,8 @@
 all: crashmon
 
 CXX=clang++
-CXXFLAGS= -framework foundation -Iincludes/ -framework LLDB -F/Applications/Xcode.app/Contents/SharedFrameworks/ -std=c++11
-LDFLAGS="-Wl,-rpath,/Applications/Xcode.app/Contents/SharedFrameworks/"
+CXXFLAGS= -framework foundation -Iincludes/ -framework LLDB -F/Library/Developer/CommandLineTools/Library/PrivateFrameworks/ -std=c++11
+LDFLAGS="-Wl,-rpath,/Library/Developer/CommandLineTools/Library/PrivateFrameworks/"
 
 crashmon.o:
 	$(shell mkdir bin/)

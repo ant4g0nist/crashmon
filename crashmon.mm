@@ -18,7 +18,6 @@
 #import "helpers.h"
 
 extern char **environ;
-const char* arch        = "arm64-apple-macosx11.1.0";
 const char* platform    = "host";
 
 using namespace lldb;
@@ -251,7 +250,8 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
 
     wrangler->debugger = debugger;
     SBError error;
-    SBTarget target = debugger.CreateTarget(argv[1], arch, platform, false, error);
+    SBTarget target = debugger.CreateTarget(argv[1], "", platform, false, error);
+    // SBTarget target = debugger.CreateTarget("");
     
     if (!error.Success())
     {
@@ -497,7 +497,11 @@ bool write_crashlog(SBCommandInterpreter command_interpreter, SBProcess process,
     NSData *data = [_exploitable_json dataUsingEncoding:NSUTF8StringEncoding];
     NSDictionary *exploitable_json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
 
-    NSLog(@"%@", exploitable_json);
+    char * json_op = getenv("CW_JSON_STDOUT");
+    if (json_op)
+    {
+        printf("%s\n", [_exploitable_json UTF8String]);
+    }
 
     NSError * error = nil;
     NSFileManager *fileManager = [NSFileManager defaultManager]; 
@@ -505,7 +509,7 @@ bool write_crashlog(SBCommandInterpreter command_interpreter, SBProcess process,
     NSString *is_exploitable = [exploitable_json valueForKey:@"av_is_exploitable"];
     NSString *exception = [exploitable_json valueForKey:@"crash_code"];
 
-    NSString* crashFolder = [NSString stringWithFormat:@"%s/exploitable_%@/%@/%s",log_dir, is_exploitable, exception,  [trail_hash UTF8String]];
+    NSString* crashFolder = [NSString stringWithFormat:@"%s/exploitable_%@/%@/%s", log_dir, is_exploitable, exception,  [trail_hash UTF8String]];
     [fileManager createDirectoryAtPath:crashFolder withIntermediateDirectories:YES attributes:nil error:&error];
 
     [_exploitable_json writeToFile:[crashFolder stringByAppendingPathComponent:@"crash.log"] atomically:YES encoding:NSUTF8StringEncoding error:&error];
