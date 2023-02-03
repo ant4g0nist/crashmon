@@ -13,7 +13,15 @@ crashmon git:(main) ✗ make
 crashmon git:(main) ✗ make install
 ```
 
+## Clone lisa.py
+```sh
+cd ~/
+git clone https://github.com/ant4g0nist/lisa.py
+echo 'command script import ~/lisa.py/lisa.py' > ~/.lldbinit
+```
+
 ![example](https://raw.githubusercontent.com/ant4g0nist/crashmon/main/imgs/example.png)
+
 
 For debugging macOS System Applications/Services, it is expected that you disable SIP as crashmon uses LLDB.
 
