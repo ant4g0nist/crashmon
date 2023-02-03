@@ -24,9 +24,6 @@ int main(int argc, const char *argv[],  char * envp[])
     context_title("crashmon - ant4g0nist");
     help(argc, argv);
 
-    struct m1Wrangler * wrangler = m1WranglerInit(argc, argv, envp);
-    int exit_status = wrangler->exit_status;
-    m1WranglerDestroy(wrangler);
-
-    return 0;
+    int exit_status = m1WranglerInit(argc, argv, envp);
+    return exit_status;
 }

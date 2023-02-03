@@ -30,7 +30,7 @@ struct CrashDetails
     char code_m[256];
 };
 
-struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[]);
+int m1WranglerInit(int argc, const char * argv[], char* envp[]);
 void m1WranglerDestroy(struct m1Wrangler* wrangler);
 bool write_crashlog(lldb::SBCommandInterpreter command_interpreter, lldb::SBProcess process, lldb::SBThread thread, char* current_case, NSData * poc, char * log_dir);
 bool analyseThread(lldb::SBProcess process, lldb::SBThread thread);

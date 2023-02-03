@@ -204,10 +204,10 @@ const char* runCommandAndFetchOutput(lldb::SBCommandInterpreter interpreter, con
 }
 
 // caller is responsible for calling m1WranglerDestroy
-struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
+int m1WranglerInit(int argc, const char * argv[], char* envp[])
 {
     lldb::pid_t attach_pid = 0;
-    struct m1Wrangler * wrangler = (struct m1Wrangler * )malloc(sizeof(struct m1Wrangler));
+    int exit_status = 0 ;
     
     uint32_t timeout = TIMEOUT;
 
@@ -223,14 +223,12 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
 
     if (current_case)
     {
-        strncpy(wrangler->current_case, current_case, strlen(current_case));
         current_case_data = [NSData dataWithContentsOfFile:[NSString stringWithUTF8String:current_case]];
     }
         
     if(attach_pid_str)
     {
         attach_pid = atoi(attach_pid_str);
-        wrangler->pid = attach_pid;
     }
 
     char * log_dir = getenv("CW_LOG_DIR");
@@ -242,23 +240,21 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
     SBDebugger::Initialize();
     
     SBDebugger debugger(SBDebugger::Create());
+    
     SBCommandInterpreter command_interpreter = debugger.GetCommandInterpreter();
     debugger.SetAsync(false);
     
     if (!debugger.IsValid())
         die("Failed to create debugger!");
 
-    wrangler->debugger = debugger;
     SBError error;
+    
     SBTarget target = debugger.CreateTarget(argv[1], "", platform, false, error);
-    // SBTarget target = debugger.CreateTarget("");
     
     if (!error.Success())
     {
       die("error: %s\n", error.GetCString());
     }
-    
-    wrangler->target = target;
     
     SBFileSpec exe = target.GetExecutable();
     debugn("target: %s", exe.GetFilename());
@@ -326,7 +322,7 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
                             
                             if (has_reason)
                             {
-                                wrangler->exit_status = 1;
+                                exit_status = thread.GetStopReasonDataAtIndex(0);
                                 write_crashlog(command_interpreter, process, thread, current_case, current_case_data, log_dir);
                                 should_die = true;
                             }
@@ -353,7 +349,7 @@ struct m1Wrangler * m1WranglerInit(int argc, const char * argv[], char* envp[])
         {
             //raise timeout
             debugn("Timeout received! dying!!!");
-            wrangler->exit_status = 2;
+            exit_status = 2;
             process.Kill();
             done = true;
         }
@@ -364,7 +360,7 @@ die:
     debugger.Destroy(debugger);
     SBDebugger::Terminate();
     
-    return wrangler;
+    return exit_status;
 }
 
 
