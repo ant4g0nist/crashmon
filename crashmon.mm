@@ -199,7 +199,7 @@ const char* runCommandAndFetchOutput(lldb::SBCommandInterpreter interpreter, con
     if (result.IsValid())
         return op;
     
-    debugn("error : %s, cmd: %s",er, cmd);
+    printf("error : %s, cmd: %s",er, cmd);
     return er;
 }
 
@@ -219,6 +219,23 @@ int m1WranglerInit(int argc, const char * argv[], char* envp[])
     NSLog(@"timeout: %d", timeout);
     char * attach_pid_str = getenv("CW_ATTACH_PID");
     char * current_case   = getenv("CW_CURRENT_CASE");
+    char * lisa_py = getenv("CW_LISA_PY");
+
+    if (!lisa_py) {
+        NSLog(@"Please make sure you provide valid lisa.py path!!");
+        exit(1);
+    }
+
+    NSString *lisa_py_path = [NSString stringWithUTF8String:lisa_py];
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    BOOL exists = [fileManager fileExistsAtPath:lisa_py_path];
+
+    if(!exists) {
+        NSLog(@"Please make sure you provide valid lisa.py path!!");
+        exit(1);
+    }
+
     NSData * current_case_data = [[NSData alloc] init];
 
     if (current_case)
@@ -290,7 +307,9 @@ int m1WranglerInit(int argc, const char * argv[], char* envp[])
     debugn("Process pid: %lld", process.GetProcessID());
     NSString *processName = [[NSProcessInfo processInfo] processName];
 
-    runCommandAndFetchOutput(command_interpreter, "command script import ~/lisa.py");        
+    NSString *lisa_import_cmd = [NSString stringWithFormat:@"command script import %@", lisa_py_path];
+
+    runCommandAndFetchOutput(command_interpreter, [lisa_import_cmd UTF8String]);
     
     debugger.SetAsync(true);
     

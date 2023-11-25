@@ -10,22 +10,28 @@ Crashmon, same as CrashWrangelr, is a LLDB wrapper together with [Lisa.py](https
 macOSResearch ✗ git clone https://github.com/ant4g0nist/crashmon
 macOSResearch ✗ cd crashmon
 crashmon git:(main) ✗ make
-crashmon git:(main) ✗ make install
 ```
 
-## Clone lisa.py
+## Setup lisa.py
+Please use lisa.py provided in crashmon folder as it has a modified version of exploitable command to pass the output as json.
+
 ```sh
-cd ~/
-git clone https://github.com/ant4g0nist/lisa.py
-echo 'command script import ~/lisa.py/lisa.py' > ~/.lldbinit
+cp crashmon/lisa.py ~/lisa.py
 ```
 
-![example](https://raw.githubusercontent.com/ant4g0nist/crashmon/main/imgs/example.png)
+## Usage
+```
+CW_LISA_PY=~/lisa.py/lisa.py •/bin/crashmon tests/binaries/crashexec
+```
 
+![example](https://raw.githubusercontent.com/ant4g0nist/crashmon/main/imgs/example1.png)
 
 For debugging macOS System Applications/Services, it is expected that you disable SIP as crashmon uses LLDB.
 
 ### ========= Environment Variable Reference =========
+CW_LISA_PY: 
+	Path of the lisa.py on your system. 
+
 CW_CURRENT_CASE: 
 Path of the test case file that is being open in the target application.
 If set, crashmon will read and save the content of the test case file to triaged crash folder. This will be handy while fuzzing!
